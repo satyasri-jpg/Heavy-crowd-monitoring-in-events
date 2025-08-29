@@ -1,0 +1,38 @@
+// Dashboard.jsx
+import React, {useEffect, useState} from 'react';
+import io from 'socket.io-client';
+const socket = io('http://localhost:4000', { autoConnect:false });
+
+export default function Dashboard({eventId='1'}) {
+  const [tiles, setTiles] = useState([]);
+
+  useEffect(()=>{
+    socket.io.opts.query = { eventId };
+    socket.connect();
+    socket.on('tile:update', t => {
+      setTiles(prev => [t, ...prev].slice(0,100));
+    });
+    return ()=> socket.disconnect();
+  },[]);
+
+  const latest = tiles[0];
+  return (
+    <div style={{padding:20}}>
+      <h1>CrowdGuard — Live</h1>
+      {!latest && <div>No tiles yet</div>}
+      {latest && (
+        <div>
+          <div>Camera: {latest.camera_id} — {new Date(latest.timestamp*1000).toLocaleTimeString()}</div>
+          <div style={{display:'grid', gridTemplateColumns:`repeat(${latest.grid.cols},20px)`}}>
+            {latest.grid.cells.map((c,i)=> {
+              const intensity = Math.min(1, c.count/10);
+              const bg = `rgba(255,0,0,${intensity})`;
+              return <div key={i} title={`count:${c.count}`} style={{width:20,height:20,background:bg,border:'1px solid #222'}} />;
+            })}
+          </div>
+        </div>
+      )}
+      <h3>Recent tiles: {tiles.length}</h3>
+    </div>
+  );
+}
